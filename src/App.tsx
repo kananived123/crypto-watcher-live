@@ -3,15 +3,22 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useBackgroundTrader } from "@/hooks/useBackgroundTrader";
 import Index from "./pages/Index.tsx";
 import Profile from "./pages/Profile.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
 
+function BackgroundTraderDaemon() {
+  useBackgroundTrader();
+  return null;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
+      <BackgroundTraderDaemon />
       <Toaster />
       <Sonner />
       <BrowserRouter>
