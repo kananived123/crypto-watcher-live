@@ -94,6 +94,8 @@ export async function fetchNewPairsForChain(chainId: string): Promise<DexPair[]>
   return (data.pairs || []).filter((p: DexPair) => p.chainId === chainId);
 }
 
+// The DexScreener /token-profiles/latest/v1 endpoint has no chainId query param,
+// so filtering is done client-side after fetching the full list.
 export async function fetchLatestProfilesForChain(chainId: string): Promise<TokenProfile[]> {
   const all = await fetchLatestProfiles();
   return all.filter((p) => p.chainId === chainId);

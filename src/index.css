@@ -80,7 +80,9 @@
   background: hsl(var(--muted-foreground));
 }
 
-/* Pulse animation for live indicator */
+/* Hide scrollbar while keeping functionality */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 @keyframes pulse-live {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
