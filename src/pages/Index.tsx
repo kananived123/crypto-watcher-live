@@ -10,7 +10,7 @@ const Index = () => {
   const [selectedChain, setSelectedChain] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<DexPair[] | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
-  const { pairs, loading, lastUpdated } = useNewPairs(5000);
+  const { pairs, loading, lastUpdated, refreshing, refetch } = useNewPairs(1000);
 
   const filteredPairs = useMemo(() => {
     const source = searchResults ?? pairs;
@@ -40,6 +40,8 @@ const Index = () => {
         lastUpdated={lastUpdated}
         pairCount={filteredPairs.length}
         onSearch={handleSearch}
+        onRefresh={refetch}
+        refreshing={refreshing}
       />
       <StatsBar pairs={filteredPairs} />
       <div className="flex flex-1 overflow-hidden">

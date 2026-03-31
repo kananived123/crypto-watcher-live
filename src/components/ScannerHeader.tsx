@@ -1,13 +1,15 @@
-import { Search } from "lucide-react";
+import { Search, RefreshCw } from "lucide-react";
 import { useState } from "react";
 
 interface ScannerHeaderProps {
   lastUpdated: Date | null;
   pairCount: number;
   onSearch: (query: string) => void;
+  onRefresh: () => void;
+  refreshing: boolean;
 }
 
-export default function ScannerHeader({ lastUpdated, pairCount, onSearch }: ScannerHeaderProps) {
+export default function ScannerHeader({ lastUpdated, pairCount, onSearch, onRefresh, refreshing }: ScannerHeaderProps) {
   const [searchValue, setSearchValue] = useState("");
 
   const handleSearch = (e: React.FormEvent) => {
@@ -42,10 +44,19 @@ export default function ScannerHeader({ lastUpdated, pairCount, onSearch }: Scan
           </div>
         </form>
 
-        <div className="hidden md:flex items-center gap-4 text-xs text-muted-foreground">
-          <span>{pairCount} pairs</span>
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <button
+            onClick={onRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50 font-medium"
+            title="Refresh now"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+            <span className="hidden sm:inline">Refresh</span>
+          </button>
+          <span className="hidden md:inline">{pairCount} pairs</span>
           {lastUpdated && (
-            <span>Updated: {lastUpdated.toLocaleTimeString()}</span>
+            <span className="hidden md:inline">{lastUpdated.toLocaleTimeString()}</span>
           )}
         </div>
       </div>
