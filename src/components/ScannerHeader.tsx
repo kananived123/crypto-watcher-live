@@ -1,13 +1,15 @@
-import { Search } from "lucide-react";
+import { Search, RefreshCw } from "lucide-react";
 import { useState } from "react";
 
 interface ScannerHeaderProps {
   lastUpdated: Date | null;
   pairCount: number;
   onSearch: (query: string) => void;
+  onRefresh: () => void;
+  refreshing: boolean;
 }
 
-export default function ScannerHeader({ lastUpdated, pairCount, onSearch }: ScannerHeaderProps) {
+export default function ScannerHeader({ lastUpdated, pairCount, onSearch, onRefresh, refreshing }: ScannerHeaderProps) {
   const [searchValue, setSearchValue] = useState("");
 
   const handleSearch = (e: React.FormEvent) => {
