@@ -1,5 +1,6 @@
 import { Search, RefreshCw } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 interface ScannerHeaderProps {
   lastUpdated: Date | null;
@@ -45,6 +46,14 @@ export default function ScannerHeader({ lastUpdated, pairCount, onSearch, onRefr
         </form>
 
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <Link
+            to="/profile"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-secondary text-foreground hover:bg-accent transition-colors font-medium"
+            title="Open profile"
+          >
+            <span className="hidden sm:inline">Profile</span>
+            <span className="sm:hidden">P</span>
+          </Link>
           <button
             onClick={onRefresh}
             disabled={refreshing}
