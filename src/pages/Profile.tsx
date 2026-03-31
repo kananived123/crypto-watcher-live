@@ -67,12 +67,15 @@ export default function Profile() {
 
     let canceled = false;
 
-    const uniquePositions = Object.values(
-      data.openPositions.reduce<Record<string, Position>>((acc, position) => {
-        acc[`${position.chainId}:${position.pairAddress}`] = position;
-        return acc;
-      }, {}),
-    );
+    const uniquePositions: Position[] = [];
+    const uniqueKeys = new Set<string>();
+
+    for (const position of data.openPositions) {
+      const key = `${position.chainId}:${position.pairAddress}`;
+      if (uniqueKeys.has(key)) continue;
+      uniqueKeys.add(key);
+      uniquePositions.push(position);
+    }
 
     async function syncLivePrices() {
       if (isLiveSyncRunning.current) return;
