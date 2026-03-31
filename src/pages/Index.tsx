@@ -1,16 +1,55 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState, useMemo } from "react";
+import { useNewPairs } from "@/hooks/useNewPairs";
+import { searchPairs, DexPair } from "@/lib/dexscreener";
+import ScannerHeader from "@/components/ScannerHeader";
+import ChainSidebar from "@/components/ChainSidebar";
+import TokenTable from "@/components/TokenTable";
+import StatsBar from "@/components/StatsBar";
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+const Index = () => {
+  const [selectedChain, setSelectedChain] = useState<string | null>(null);
+  const [searchResults, setSearchResults] = useState<DexPair[] | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const { pairs, loading, lastUpdated } = useNewPairs(5000);
+
+  const filteredPairs = useMemo(() => {
+    const source = searchResults ?? pairs;
+    if (!selectedChain) return source;
+    return source.filter((p) => p.chainId === selectedChain);
+  }, [pairs, searchResults, selectedChain]);
+
+  const handleSearch = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults(null);
+      return;
+    }
+    setSearchLoading(true);
+    try {
+      const results = await searchPairs(query);
+      setSearchResults(results);
+    } catch {
+      setSearchResults(null);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="flex flex-col h-screen overflow-hidden">
+      <ScannerHeader
+        lastUpdated={lastUpdated}
+        pairCount={filteredPairs.length}
+        onSearch={handleSearch}
+      />
+      <StatsBar pairs={filteredPairs} />
+      <div className="flex flex-1 overflow-hidden">
+        <ChainSidebar selectedChain={selectedChain} onSelectChain={setSelectedChain} />
+        <main className="flex-1 overflow-y-auto">
+          <TokenTable pairs={filteredPairs} loading={loading || searchLoading} />
+        </main>
+      </div>
     </div>
   );
 };
-
-const Index = PlaceholderIndex;
 
 export default Index;
