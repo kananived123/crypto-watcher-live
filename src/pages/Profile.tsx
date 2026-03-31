@@ -1,9 +1,10 @@
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Bot, Wallet, Settings2, Activity, ShieldCheck, RefreshCw } from "lucide-react";
-import { formatNumber, formatPrice } from "@/lib/dexscreener";
+import { fetchProfilePositionPair, formatNumber, formatPrice } from "@/lib/dexscreener";
 import {
   BotSettings,
+  Position,
   ProfileData,
   createDefaultProfileData,
   loadProfileData,
@@ -25,6 +26,10 @@ export default function Profile() {
   const [walletInput, setWalletInput] = useState("100");
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [livePriceMap, setLivePriceMap] = useState<Record<string, number>>({});
+  const [liveSyncing, setLiveSyncing] = useState(false);
+  const [liveUpdatedAt, setLiveUpdatedAt] = useState<Date | null>(null);
+  const isLiveSyncRunning = useRef(false);
 
   useEffect(() => {
     let canceled = false;
@@ -52,6 +57,74 @@ export default function Profile() {
       clearInterval(interval);
     };
   }, []);
+
+  useEffect(() => {
+    if (!data.openPositions.length) {
+      setLivePriceMap({});
+      setLiveUpdatedAt(null);
+      return;
+    }
+
+    let canceled = false;
+
+    const uniquePositions = Object.values(
+      data.openPositions.reduce<Record<string, Position>>((acc, position) => {
+        acc[`${position.chainId}:${position.pairAddress}`] = position;
+        return acc;
+      }, {}),
+    );
+
+    async function syncLivePrices() {
+      if (isLiveSyncRunning.current) return;
+      isLiveSyncRunning.current = true;
+      setLiveSyncing(true);
+      try {
+        const nextPrices: Record<string, number> = {};
+        const batchSize = 10;
+
+        for (let i = 0; i < uniquePositions.length; i += batchSize) {
+          const batch = uniquePositions.slice(i, i + batchSize);
+          const batchResults = await Promise.allSettled(
+            batch.map(async (position) => {
+              const pair = await fetchProfilePositionPair(
+                position.chainId,
+                position.pairAddress,
+                position.tokenAddress,
+              );
+              const price = parseFloat(pair?.priceUsd ?? "");
+              if (Number.isFinite(price) && price > 0) {
+                return { key: position.pairAddress, price };
+              }
+              return null;
+            }),
+          );
+
+          for (const result of batchResults) {
+            if (result.status === "fulfilled" && result.value) {
+              nextPrices[result.value.key] = result.value.price;
+            }
+          }
+        }
+
+        if (!canceled && Object.keys(nextPrices).length > 0) {
+          setLivePriceMap((prev) => ({ ...prev, ...nextPrices }));
+          setLiveUpdatedAt(new Date());
+        }
+      } finally {
+        isLiveSyncRunning.current = false;
+        if (!canceled) setLiveSyncing(false);
+      }
+    }
+
+    syncLivePrices();
+    const interval = setInterval(syncLivePrices, 1000);
+
+    return () => {
+      canceled = true;
+      isLiveSyncRunning.current = false;
+      clearInterval(interval);
+    };
+  }, [data.openPositions]);
 
   const persist = async (next: ProfileData) => {
     setData(next);
@@ -93,14 +166,28 @@ export default function Profile() {
     await persist(fresh);
   };
 
+  const liveOpenPositions = useMemo(() => {
+    return data.openPositions.map((position) => {
+      const livePrice = livePriceMap[position.pairAddress];
+      if (!Number.isFinite(livePrice) || livePrice <= 0) return position;
+
+      const returnPct = ((livePrice - position.entryPrice) / position.entryPrice) * 100;
+      return {
+        ...position,
+        currentPrice: livePrice,
+        returnPct,
+      };
+    });
+  }, [data.openPositions, livePriceMap]);
+
   const openPnl = useMemo(() => {
     return round2(
-      data.openPositions.reduce(
+      liveOpenPositions.reduce(
         (sum, p) => sum + (p.currentPrice * p.quantity - p.investedUsd),
         0,
       ),
     );
-  }, [data]);
+  }, [liveOpenPositions]);
 
   const closedPnl = useMemo(() => {
     return round2(data.closedPositions.reduce((sum, p) => sum + (p.pnlUsd ?? 0), 0));
@@ -164,6 +251,10 @@ export default function Profile() {
                 <Button onClick={updateWallet}>Update</Button>
               </div>
               <p className="text-xs text-muted-foreground">Last engine update: {loaded ? new Date(data.updatedAt).toLocaleString() : "Loading..."}</p>
+              <p className="text-xs text-muted-foreground">
+                Profile live price sync: {liveSyncing ? "syncing every 1s" : "running"}
+                {liveUpdatedAt ? ` · ${liveUpdatedAt.toLocaleTimeString()}` : ""}
+              </p>
             </CardContent>
           </Card>
 
@@ -237,7 +328,7 @@ export default function Profile() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.openPositions.slice(0, 200).map((position) => (
+                {liveOpenPositions.slice(0, 200).map((position) => (
                   <TableRow key={position.id}>
                     <TableCell className="font-medium">{position.symbol}</TableCell>
                     <TableCell className="uppercase">{position.chainId}</TableCell>
@@ -254,7 +345,7 @@ export default function Profile() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {data.openPositions.length === 0 && (
+                {liveOpenPositions.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center text-muted-foreground">
                       No open positions yet.

@@ -19,6 +19,8 @@ export interface BotSettings {
 export interface Position {
   id: string;
   pairAddress: string;
+  pairUrl?: string;
+  tokenAddress?: string;
   symbol: string;
   chainId: string;
   openedAt: number;
@@ -236,6 +238,8 @@ export function applyTradingCycle(current: ProfileData, pairs: DexPair[]): { nex
     next.openPositions.unshift({
       id: `${pair.pairAddress}-${Date.now()}`,
       pairAddress: pair.pairAddress,
+      pairUrl: pair.url,
+      tokenAddress: pair.baseToken.address,
       symbol: pair.baseToken.symbol,
       chainId: pair.chainId,
       openedAt: Date.now(),

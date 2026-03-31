@@ -87,6 +87,52 @@ export async function searchPairs(query: string): Promise<DexPair[]> {
   return data.pairs || [];
 }
 
+export async function fetchPairByAddress(chainId: string, pairAddress: string): Promise<DexPair | null> {
+  const byPairRes = await fetch(`${BASE_URL}/latest/dex/pairs/${chainId}/${pairAddress}`);
+  if (byPairRes.ok) {
+    const data = await byPairRes.json();
+    const fromSingle = data?.pair as DexPair | undefined;
+    if (fromSingle?.pairAddress) return fromSingle;
+
+    const fromList = (data?.pairs as DexPair[] | undefined)?.find(
+      (p) => p.pairAddress?.toLowerCase() === pairAddress.toLowerCase(),
+    );
+    if (fromList) return fromList;
+  }
+
+  const searchRes = await fetch(`${BASE_URL}/latest/dex/search?q=${encodeURIComponent(pairAddress)}`);
+  if (!searchRes.ok) return null;
+
+  const searchData = await searchRes.json();
+  const matched = (searchData?.pairs as DexPair[] | undefined)?.find(
+    (p) =>
+      p.chainId?.toLowerCase() === chainId.toLowerCase() &&
+      p.pairAddress?.toLowerCase() === pairAddress.toLowerCase(),
+  );
+
+  return matched ?? null;
+}
+
+export async function fetchProfilePositionPair(
+  chainId: string,
+  pairAddress: string,
+  tokenAddress?: string,
+): Promise<DexPair | null> {
+  if (tokenAddress) {
+    try {
+      const tokenPairs = await fetchPairsByToken(chainId, tokenAddress);
+      const matchedByToken = tokenPairs.find(
+        (p) => p.pairAddress?.toLowerCase() === pairAddress.toLowerCase(),
+      );
+      if (matchedByToken) return matchedByToken;
+    } catch {
+      // fall through to pair-address fetch
+    }
+  }
+
+  return fetchPairByAddress(chainId, pairAddress);
+}
+
 export async function fetchNewPairsForChain(chainId: string): Promise<DexPair[]> {
   // Use search with chain filter to get recent pairs
   const res = await fetch(`${BASE_URL}/latest/dex/search?q=${chainId}`);
