@@ -40,6 +40,8 @@ const Index = () => {
         lastUpdated={lastUpdated}
         pairCount={filteredPairs.length}
         onSearch={handleSearch}
+        onRefresh={refetch}
+        refreshing={refreshing}
       />
       <StatsBar pairs={filteredPairs} />
       <div className="flex flex-1 overflow-hidden">
