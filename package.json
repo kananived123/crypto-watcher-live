@@ -9,6 +9,8 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
+    "trader:worker": "node server/trader-worker.mjs",
+    "trader:worker:prod": "TRADER_PORT=8787 TRADER_POLL_MS=1000 node server/trader-worker.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

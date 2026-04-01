@@ -22,6 +22,9 @@ function round2(value: number): number {
 }
 
 export default function Profile() {
+  const apiBase = (import.meta.env.VITE_TRADER_API_URL as string | undefined)?.replace(/\/$/, "");
+  const useBackendApi = Boolean(apiBase);
+
   const [data, setData] = useState<ProfileData>(createDefaultProfileData());
   const [walletInput, setWalletInput] = useState("100");
   const [saving, setSaving] = useState(false);
@@ -31,11 +34,36 @@ export default function Profile() {
   const [liveUpdatedAt, setLiveUpdatedAt] = useState<Date | null>(null);
   const isLiveSyncRunning = useRef(false);
 
+  const fetchRemoteState = async (): Promise<ProfileData> => {
+    const res = await fetch(`${apiBase}/api/profile-state`);
+    if (!res.ok) throw new Error("Failed to load backend profile state");
+    return res.json();
+  };
+
+  const saveRemoteState = async (next: ProfileData): Promise<ProfileData> => {
+    const res = await fetch(`${apiBase}/api/profile-settings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ walletUsd: next.walletUsd, settings: next.settings }),
+    });
+    if (!res.ok) throw new Error("Failed to save backend profile state");
+    return res.json();
+  };
+
+  const resetRemoteState = async (): Promise<ProfileData> => {
+    const res = await fetch(`${apiBase}/api/profile-reset`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!res.ok) throw new Error("Failed to reset backend profile state");
+    return res.json();
+  };
+
   useEffect(() => {
     let canceled = false;
 
     async function initialLoad() {
-      const profile = await loadProfileData();
+      const profile = useBackendApi ? await fetchRemoteState() : await loadProfileData();
       if (!canceled) {
         setData(profile);
         setWalletInput(String(profile.walletUsd));
@@ -46,7 +74,7 @@ export default function Profile() {
     initialLoad();
 
     const interval = setInterval(async () => {
-      const latest = await loadProfileData();
+      const latest = useBackendApi ? await fetchRemoteState() : await loadProfileData();
       if (!canceled) {
         setData(latest);
       }
@@ -56,10 +84,10 @@ export default function Profile() {
       canceled = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [useBackendApi]);
 
   useEffect(() => {
-    if (!data.openPositions.length) {
+    if (useBackendApi || !data.openPositions.length) {
       setLivePriceMap({});
       setLiveUpdatedAt(null);
       return;
@@ -127,13 +155,18 @@ export default function Profile() {
       isLiveSyncRunning.current = false;
       clearInterval(interval);
     };
-  }, [data.openPositions]);
+  }, [data.openPositions, useBackendApi]);
 
   const persist = async (next: ProfileData) => {
     setData(next);
     setSaving(true);
     try {
-      await saveProfileData(next);
+      if (useBackendApi) {
+        const saved = await saveRemoteState(next);
+        setData(saved);
+      } else {
+        await saveProfileData(next);
+      }
     } finally {
       setSaving(false);
     }
@@ -164,6 +197,13 @@ export default function Profile() {
   };
 
   const resetData = async () => {
+    if (useBackendApi) {
+      const fresh = await resetRemoteState();
+      setWalletInput(String(fresh.walletUsd));
+      setData(fresh);
+      return;
+    }
+
     const fresh = createDefaultProfileData();
     setWalletInput(String(fresh.walletUsd));
     await persist(fresh);
@@ -255,8 +295,9 @@ export default function Profile() {
               </div>
               <p className="text-xs text-muted-foreground">Last engine update: {loaded ? new Date(data.updatedAt).toLocaleString() : "Loading..."}</p>
               <p className="text-xs text-muted-foreground">
-                Profile live price sync: {liveSyncing ? "syncing every 1s" : "running"}
-                {liveUpdatedAt ? ` · ${liveUpdatedAt.toLocaleTimeString()}` : ""}
+                Mode: {useBackendApi ? "Always-on backend worker" : "Browser session"}
+                {!useBackendApi && ` · ${liveSyncing ? "syncing every 1s" : "running"}`}
+                {!useBackendApi && liveUpdatedAt ? ` · ${liveUpdatedAt.toLocaleTimeString()}` : ""}
               </p>
             </CardContent>
           </Card>

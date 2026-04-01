@@ -11,6 +11,9 @@ import NotFound from "./pages/NotFound.tsx";
 const queryClient = new QueryClient();
 
 function BackgroundTraderDaemon() {
+  if (import.meta.env.VITE_TRADER_API_URL) {
+    return null;
+  }
   useBackgroundTrader();
   return null;
 }
